@@ -30,6 +30,11 @@ import java.nio.charset.StandardCharsets;
 import java.util.Objects;
 
 /**
+ * 使用Netty Unpooled 工具类实现，Unpooled 是采用非对象池技术实现的，由JVM负责回收管理的堆内存缓冲对象, vertx不允许对象引用操作。
+ * 对Netty的ByteBuf对象进行包装
+ * Unpooled 可以创建堆内存(buffer)，直接内存(directBuffer),包装(wrappedBuffer),复制(coppiedBuffer)
+ *
+ * 提供 read, write, append, slice, copy, wrap等常见操作.
  * @author <a href="http://tfox.org">Tim Fox</a>
  */
 public class BufferImpl implements Buffer {
@@ -41,6 +46,7 @@ public class BufferImpl implements Buffer {
   }
 
   BufferImpl(int initialSizeHint) {
+//     ignore retain and release
     buffer = Unpooled.unreleasableBuffer(Unpooled.buffer(initialSizeHint, Integer.MAX_VALUE));
   }
 
@@ -190,7 +196,7 @@ public class BufferImpl implements Buffer {
   @Override
   public Buffer getBytes(int start, int end, byte[] dst, int dstIndex) {
     Arguments.require(end >= start, "end must be greater or equal than start");
-    buffer.getBytes(start, dst, dstIndex, end - start);
+    buffer.getBytes(start, dst, dstIndex, end - start); // index, dst, dstIndex, length.
     return this;
   }
 
@@ -212,6 +218,7 @@ public class BufferImpl implements Buffer {
   public Buffer appendBuffer(Buffer buff) {
     ByteBuf cb = buff.getByteBuf();
     buffer.writeBytes(buff.getByteBuf());
+    // Netty write modifyies the source readerIndex. append and return this.
     cb.readerIndex(0); // Need to reset readerindex since Netty write modifies readerIndex of source!
     return this;
   }
@@ -488,6 +495,7 @@ public class BufferImpl implements Buffer {
     return this;
   }
 
+  // recurse.
   private void ensureWritable(int pos, int len) {
     int ni = pos + len;
     int cap = buffer.capacity();
@@ -517,7 +525,7 @@ public class BufferImpl implements Buffer {
 
   @Override
   public void writeToBuffer(Buffer buff) {
-    buff.appendInt(this.length());
+    buff.appendInt(this.length()); // length and buffer
     buff.appendBuffer(this);
   }
 
